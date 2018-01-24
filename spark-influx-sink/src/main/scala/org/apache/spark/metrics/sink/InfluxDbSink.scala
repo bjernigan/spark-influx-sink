@@ -88,9 +88,26 @@ class InfluxDbSink(val property: Properties, val registry: MetricRegistry,
     conf.getOption("spark.app.id").orElse(appFromRegistry).getOrElse(Utils.getProcessName())
   }
 
+  val quboleCommandId = {
+    // Get Qubole Command ID from spark environment
+    val env = SparkEnv.get
+    val conf = if (env != null) {
+      env.conf
+    } else {
+      new SparkConf()
+    }
+    val appFromRegistry = JavaConversions.asScalaSet(registry.getNames)
+      .filter(name => name != null)
+      .find(name => name.startsWith("query_hist_id") && name.contains("."))
+      .map(name => name.substring(0, name.indexOf('.')))
+    conf.getOption("spark.qubole.analyze.query_hist_id").orElse(appFromRegistry).getOrElse("NA")
+  }
+
   val defaultTags = Seq(
     "host" -> Utils.localHostName(),
-    "appId" -> applicationId)
+    "appId" -> applicationId,
+    "quboleCommandId" -> quboleCommandId,
+    "quboleUser" -> Utils.getCurrentUserName())
 
   // example custom tag input string: "product:my_product,parent:my_service"
   val customTags = tags.split(",")
